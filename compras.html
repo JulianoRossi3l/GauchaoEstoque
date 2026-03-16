@@ -1,34 +1,72 @@
-<!-- Dentro do seu compras.html -->
-<script type="module">
-    import { supabase } from './js/supabaseClient.js';
-    import { renderMenu } from './js/menu.js';
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Compras - Cozinha Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 flex">
+    <main class="ml-64 p-8 w-full">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Sugestão de Compras</h1>
+            <button id="btnWhats" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-bold">
+                Enviar p/ WhatsApp
+            </button>
+        </div>
 
-    async function gerarLista() {
-        renderMenu();
-        const { data: produtos } = await supabase
-            .from('produtos')
-            .select('*, fornecedores(nome, telefone)');
+        <div id="listaSugestao" class="bg-white rounded shadow p-4 space-y-2">
+            <!-- Itens de compra aqui -->
+        </div>
+    </main>
 
-        const listaFiltrada = produtos.filter(p => p.quantidade_atual <= p.quantidade_minima);
-        const container = document.getElementById('listaSugestao');
+    <script type="module">
+        import { supabase } from './js/supabaseClient.js';
+        import { renderMenu } from './js/menu.js';
+        import { verificarSessao } from './js/auth.js';
 
-        let textoWhats = "*LISTA DE COMPRAS - COZINHA*\n\n";
+        async function gerarLista() {
+            await verificarSessao();
+            renderMenu();
 
-        listaFiltrada.forEach(p => {
-            const sugestaoQtd = (p.quantidade_minima * 2) - p.quantidade_atual;
-            container.innerHTML += `
-                <div class="bg-white p-4 shadow mb-2 rounded border-l-4 border-orange-500">
-                    <h3 class="font-bold">${p.nome}</h3>
-                    <p>Sugerido: <b>${sugestaoQtd} ${p.unidade}</b></p>
-                    <p class="text-sm text-gray-600">Fornecedor: ${p.fornecedores?.nome}</p>
-                </div>
-            `;
-            textoWhats += `- ${p.nome}: ${sugestaoQtd} ${p.unidade} (${p.fornecedores?.nome})\n`;
-        });
+            const { data: produtos } = await supabase
+                .from('produtos')
+                .select('*, fornecedores(nome, telefone)');
 
-        document.getElementById('btnWhats').onclick = () => {
-            window.open(`https://wa.me/?text=${encodeURIComponent(textoWhats)}`);
-        };
-    }
-    gerarLista();
-</script>
+            const listaFiltrada = produtos.filter(p => p.quantidade_atual <= p.quantidade_minima);
+            const container = document.getElementById('listaSugestao');
+            
+            if(listaFiltrada.length === 0) {
+                container.innerHTML = "O estoque está cheio. Nenhuma compra necessária.";
+                return;
+            }
+
+            let textoWhats = "*LISTA DE COMPRAS - COZINHA*\n\n";
+
+            listaFiltrada.forEach(p => {
+                // Sugere comprar o suficiente para chegar ao dobro do mínimo
+                const sugerido = (p.quantidade_minima * 2) - p.quantidade_atual;
+                
+                container.innerHTML += `
+                    <div class="border-b p-3 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold">${p.nome}</p>
+                            <p class="text-xs text-gray-500">Fornecedor: ${p.fornecedores?.nome || 'Não definido'}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-orange-600 font-bold">Comprar: ${sugerido} ${p.unidade}</p>
+                        </div>
+                    </div>
+                `;
+                textoWhats += `* ${p.nome}: ${sugerido}${p.unidade} (Forn: ${p.fornecedores?.nome || '-'})\n`;
+            });
+
+            document.getElementById('btnWhats').onclick = () => {
+                window.open(`https://wa.me/?text=${encodeURIComponent(textoWhats)}`);
+            };
+        }
+
+        gerarLista();
+    </script>
+</body>
+</html>
