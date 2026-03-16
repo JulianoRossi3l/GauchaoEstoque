@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Cozinha Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 flex">
+    <main class="ml-64 p-8 w-full">
+        <h1 class="text-3xl font-bold mb-8 text-gray-800">Dashboard de Visão Geral</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+                <p class="text-sm text-gray-500 uppercase">Total Produtos</p>
+                <h3 id="totalProdutos" class="text-2xl font-bold">0</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+                <p class="text-sm text-gray-500 uppercase">Estoque Crítico</p>
+                <h3 id="estoqueCritico" class="text-2xl font-bold">0</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                <p class="text-sm text-gray-500 uppercase">Fornecedores</p>
+                <h3 id="totalFornecedores" class="text-2xl font-bold">0</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500">
+                <p class="text-sm text-gray-500 uppercase">Alertas Hoje</p>
+                <h3 id="alertasHoje" class="text-2xl font-bold">0</h3>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm h-96">
+            <h2 class="text-lg font-semibold mb-4">Itens com Baixo Estoque</h2>
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b">
+                        <th class="py-2">Produto</th>
+                        <th>Qtd Atual</th>
+                        <th>Qtd Mínima</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="listaCritica"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script type="module">
+        import { supabase } from './js/supabaseClient.js';
+        import { renderMenu } from './js/menu.js';
+        
+        async function loadDashboard() {
+            renderMenu();
+            
+            const { data: produtos } = await supabase.from('produtos').select('*');
+            const { data: fornecedores } = await supabase.from('fornecedores').select('*');
+
+            const criticos = produtos.filter(p => p.quantidade_atual <= p.quantidade_minima);
+
+            document.getElementById('totalProdutos').innerText = produtos.length;
+            document.getElementById('totalFornecedores').innerText = fornecedores.length;
+            document.getElementById('estoqueCritico').innerText = criticos.length;
+
+            const tbody = document.getElementById('listaCritica');
+            criticos.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="py-2">${p.nome}</td>
+                        <td>${p.quantidade_atual} ${p.unidade}</td>
+                        <td>${p.quantidade_minima} ${p.unidade}</td>
+                        <td><span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">CRÍTICO</span></td>
+                    </tr>
+                `;
+            });
+        }
+        loadDashboard();
+    </script>
+</body>
+</html>
