@@ -62,10 +62,13 @@
         }
 
         async function carregarSelects() {
-            const cats = await supabase.from('categorias').select('*');
-            const forns = await supabase.from('fornecedores').select('*');
-            document.getElementById('selCat').innerHTML = cats.data.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
-            document.getElementById('selForn').innerHTML = forns.data.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+            const { data: categorias } = await supabase.from('categorias').select('*, categoria_pai(nome)');
+    
+            document.getElementById('selCat').innerHTML = categorias.map(c => {
+                // Se tiver pai, mostra "Pai > Filho", se não, mostra só o nome
+                const nomeExibicao = c.categoria_pai ? `${c.categoria_pai.nome} > ${c.nome}` : c.nome;
+                return `<option value="${c.id}">${nomeExibicao}</option>`;
+            }).join('');
         }
 
         async function carregarEstoque() {
