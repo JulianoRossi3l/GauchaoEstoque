@@ -2,103 +2,81 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Categorias - Cozinha Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-50 flex">
 
-    <!-- O menu será injetado aqui pelo renderMenu() -->
-
-    <main class="ml-64 p-8 w-full">
-        <h1 class="text-3xl font-bold mb-6">Organização de Categorias</h1>
-
-        <!-- Formulário para Categoria Principal -->
-        <div class="bg-white p-6 rounded shadow-sm mb-8 border-l-4 border-orange-500">
-            <h2 class="font-bold text-gray-700 mb-4">1. Nova Categoria Principal</h2>
-            <form id="formPai" class="flex gap-4">
-                <input type="text" id="nomePai" placeholder="Ex: Proteínas, Bebidas, FLV..." required 
-                       class="flex-1 border p-2 rounded text-lg focus:ring-2 focus:ring-orange-500 outline-none">
-                <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded font-bold hover:bg-orange-600 transition">
-                    + Criar Principal
-                </button>
-            </form>
-        </div>
-
-        <!-- Tabela de Gestão -->
-        <div class="bg-white rounded shadow-sm overflow-hidden border">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-800 text-white">
-                        <th class="p-4 w-1/3 border-r border-gray-700">CATEGORIA PRINCIPAL</th>
-                        <th class="p-4">SUBCATEGORIAS (Digite e aperte Enter)</th>
-                    </tr>
-                </thead>
-                <tbody id="corpoTabela">
-                    <tr><td colspan="2" class="p-4 text-center text-gray-500">Carregando categorias...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </main>
-
     <script type="module">
+        // IMPORTANTE: Importamos o cliente e as funções essenciais
         import { supabase } from './js/supabaseClient.js';
         import { renderMenu } from './js/menu.js';
         import { verificarSessao } from './js/auth.js';
 
+        // Tornamos o supabase global para facilitar o uso nas funções window
+        window.supabase = supabase;
+
         async function init() {
-            const sessao = await verificarSessao();
-            if (sessao) {
+            try {
+                // 1. Garante que o menu apareça antes de qualquer outra coisa
                 renderMenu();
-                renderizarTabela();
+                
+                // 2. Verifica se o usuário está logado
+                const sessao = await verificarSessao();
+                if (!sessao) return;
+
+                // 3. Carrega os dados
+                await renderizarTabela();
+
+            } catch (error) {
+                console.error("Erro na inicialização:", error);
             }
         }
 
+        // Função para Renderizar a Tabela
         async function renderizarTabela() {
-            // Busca todas as categorias
-            const { data: todas, error } = await supabase.from('categorias').select('*').order('nome');
+            const corpo = document.getElementById('corpoTabela');
+            
+            const { data: todas, error } = await window.supabase
+                .from('categorias')
+                .select('*')
+                .order('nome');
+
             if (error) {
-                console.error("Erro ao buscar:", error);
+                alert("Erro ao carregar dados do banco.");
                 return;
             }
 
             const principais = todas.filter(c => !c.categoria_pai);
-            const corpo = document.getElementById('corpoTabela');
             corpo.innerHTML = '';
-
-            if (principais.length === 0) {
-                corpo.innerHTML = '<tr><td colspan="2" class="p-10 text-center text-gray-400">Nenhuma categoria cadastrada.</td></tr>';
-            }
 
             principais.forEach(pai => {
                 const subs = todas.filter(c => c.categoria_pai === pai.id);
                 
                 const htmlSubs = subs.map(s => `
-                    <span class="inline-flex items-center bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1 rounded-full text-sm font-medium mr-2 mb-2 group">
+                    <span class="inline-flex items-center bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium mr-2 mb-2">
                         ${s.nome}
-                        <button onclick="window.excluirCategoria('${s.id}', '${s.nome}')" class="ml-2 text-orange-300 hover:text-red-500">✕</button>
+                        <button onclick="excluirItem('${s.id}', '${s.nome}')" class="ml-2 hover:text-red-500 font-bold">✕</button>
                     </span>
                 `).join('');
 
                 corpo.innerHTML += `
-                    <tr class="border-b hover:bg-gray-50 transition">
-                        <td class="p-4 border-r bg-gray-50/30">
+                    <tr class="border-b bg-white hover:bg-gray-50">
+                        <td class="p-4 border-r w-1/3">
                             <div class="flex justify-between items-center group">
-                                <span class="font-bold text-xl text-gray-800">${pai.nome}</span>
-                                <button onclick="window.excluirCategoria('${pai.id}', '${pai.nome}')" 
-                                        class="text-gray-300 hover:text-red-600 transition-colors p-1" title="Excluir Principal">
-                                    🗑️
-                                </button>
+                                <span class="font-bold text-gray-800 text-lg">${pai.nome}</span>
+                                <button onclick="excluirItem('${pai.id}', '${pai.nome}')" class="text-gray-300 hover:text-red-600 transition p-1">🗑️</button>
                             </div>
                         </td>
                         <td class="p-4">
                             <div class="flex flex-wrap items-center">
                                 ${htmlSubs}
                                 <input type="text" 
-                                    placeholder="+ Novo sub-item..." 
-                                    class="border-b border-dashed border-gray-300 focus:border-orange-500 outline-none p-1 text-sm bg-transparent w-40 ml-2"
-                                    onkeydown="if(event.key === 'Enter') window.adicionarSub('${pai.id}', this.value)"
-                                >
+                                    placeholder="+ Sub-item (Enter)" 
+                                    class="border-b border-gray-300 focus:border-orange-500 outline-none p-1 text-sm bg-transparent w-40 ml-2"
+                                    onkeydown="if(event.key === 'Enter') adicionarSubcategoria('${pai.id}', this)">
                             </div>
                         </td>
                     </tr>
@@ -106,21 +84,84 @@
             });
         }
 
-        // --- FUNÇÕES GLOBAIS (necessárias para o HTML enxergar dentro do module) ---
+        // --- FUNÇÕES GLOBAIS (Atribuídas ao window para o HTML enxergar) ---
 
-        window.adicionarSub = async (paiId, nomeSub) => {
-            if (!nomeSub.trim()) return;
-            const { error } = await supabase.from('categorias').insert([{ 
-                nome: nomeSub, 
+        window.adicionarPrincipal = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('nomePai');
+            const nome = input.value.trim();
+
+            if (!nome) return;
+
+            const { error } = await window.supabase.from('categorias').insert([{ nome: nome }]);
+
+            if (error) {
+                alert("Erro ao salvar no banco: " + error.message);
+            } else {
+                input.value = '';
+                await renderizarTabela();
+            }
+        };
+
+        window.adicionarSubcategoria = async (paiId, input) => {
+            const nome = input.value.trim();
+            if (!nome) return;
+
+            const { error } = await window.supabase.from('categorias').insert([{ 
+                nome: nome, 
                 categoria_pai: paiId 
             }]);
             
-            if (error) alert("Erro ao adicionar subcategoria.");
-            renderizarTabela();
+            if (error) {
+                alert("Erro ao adicionar subcategoria.");
+            } else {
+                input.value = '';
+                await renderizarTabela();
+            }
         };
 
-        window.excluirCategoria = async (id, nome) => {
-            if (confirm(`Deseja realmente excluir "${nome}"?\n\nAtenção: Isso pode afetar produtos vinculados.`)) {
-                const { error } = await supabase.from('categorias').delete().eq('id', id);
-                if (error) {
-                    alert("N
+        window.excluirItem = async (id, nome) => {
+            if (confirm(`Excluir "${nome}"?`)) {
+                const { error } = await window.supabase.from('categorias').delete().eq('id', id);
+                if (error) alert("Erro: Esta categoria pode estar em uso.");
+                else await renderizarTabela();
+            }
+        };
+
+        // Inicia tudo
+        init();
+    </script>
+
+    <!-- Estrutura da Página -->
+    <main class="ml-64 p-8 w-full min-h-screen">
+        <h1 class="text-3xl font-bold mb-8 text-gray-800">Organização de Categorias</h1>
+
+        <!-- Formulário Categoria Principal -->
+        <div class="bg-white p-6 rounded shadow-md mb-8 border-t-4 border-orange-500">
+            <h2 class="font-bold text-gray-700 mb-4 uppercase text-xs tracking-wider">Criar Novo Grupo Principal</h2>
+            <form onsubmit="adicionarPrincipal(event)" class="flex gap-4">
+                <input type="text" id="nomePai" placeholder="Ex: Proteínas, Bebidas, Insumos..." required 
+                       class="flex-1 border-2 border-gray-200 p-2 rounded-lg focus:border-orange-500 outline-none transition">
+                <button type="submit" class="bg-orange-500 text-white px-8 py-2 rounded-lg font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-200">
+                    ADICIONAR
+                </button>
+            </form>
+        </div>
+
+        <!-- Tabela -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-800 text-white">
+                        <th class="p-4 border-r border-gray-700">CATEGORIA PRINCIPAL</th>
+                        <th class="p-4">SUBCATEGORIAS</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabela">
+                    <tr><td colspan="2" class="p-8 text-center text-gray-400">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>
