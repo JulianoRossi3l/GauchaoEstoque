@@ -1,28 +1,30 @@
 import { supabase } from './supabaseClient.js';
 
+// Função de Login
 const loginForm = document.getElementById('loginForm');
-
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        // Pegando os valores diretamente pelo ID
-        const emailValue = document.getElementById('email').value;
-        const passwordValue = document.getElementById('password').value;
-
-        console.log("Tentando logar com:", emailValue);
-
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: emailValue,
-            password: passwordValue
-        });
-
-        if (error) {
-            alert("Erro ao entrar: " + error.message);
-            console.error(error);
-        } else {
-            console.log("Sucesso!", data);
-            window.location.href = 'dashboard.html';
-        }
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) alert("Erro: " + error.message);
+        else window.location.href = 'dashboard.html';
     });
+}
+
+// Função para verificar sessão (Proteger páginas)
+export async function verificarSessao() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session && !window.location.pathname.includes('index.html')) {
+        window.location.href = 'index.html';
+    }
+    return session;
+}
+
+// ESTA É A FUNÇÃO QUE ESTAVA FALTANDO OU COM ERRO:
+export async function logout() {
+    const { error } = await supabase.auth.signOut();
+    if (error) alert("Erro ao sair");
+    window.location.href = 'index.html';
 }
