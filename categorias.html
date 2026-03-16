@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Categorias - Cozinha Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 flex">
+    <main class="ml-64 p-8 w-full">
+        <h1 class="text-3xl font-bold mb-6">Categorias</h1>
+        <div class="bg-white p-6 rounded shadow-sm mb-6">
+            <form id="formCategoria" class="flex gap-4">
+                <input type="text" name="nome" placeholder="Ex: Proteínas" required class="border p-2 rounded flex-1">
+                <button type="submit" class="bg-orange-500 text-white px-4 py-2 rounded">Adicionar</button>
+            </form>
+        </div>
+        <div class="bg-white rounded shadow-sm">
+            <table class="w-full text-left">
+                <thead><tr class="bg-gray-100"><th class="p-3">Nome</th></tr></thead>
+                <tbody id="listaCategorias"></tbody>
+            </table>
+        </div>
+    </main>
+    <script type="module">
+        import { supabase } from './js/supabaseClient.js';
+        import { renderMenu } from './js/menu.js';
+        import { verificarSessao } from './js/auth.js';
+
+        async function init() {
+            await verificarSessao();
+            renderMenu();
+            carregarCategorias();
+        }
+
+        async function carregarCategorias() {
+            const { data } = await supabase.from('categorias').select('*');
+            const lista = document.getElementById('listaCategorias');
+            lista.innerHTML = data.map(c => `<tr class="border-b"><td class="p-3">${c.nome}</td></tr>`).join('');
+        }
+
+        document.getElementById('formCategoria').onsubmit = async (e) => {
+            e.preventDefault();
+            const nome = e.target.nome.value;
+            await supabase.from('categorias').insert([{ nome }]);
+            e.target.reset();
+            carregarCategorias();
+        };
+
+        init();
+    </script>
+</body>
+</html>
