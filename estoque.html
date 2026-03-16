@@ -1,102 +1,15 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Estoque - Cozinha Control</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-</head>
-<body class="bg-gray-50 flex">
-    <main class="ml-64 p-8 w-full">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold">Estoque</h1>
-            <button onclick="document.getElementById('modal').classList.remove('hidden')" class="bg-orange-500 text-white px-4 py-2 rounded">+ Novo Produto</button>
-        </div>
-
-        <div class="bg-white rounded shadow shadow-md overflow-hidden">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-800 text-white">
-                        <th class="p-3">Produto</th>
-                        <th class="p-3">Categoria</th>
-                        <th class="p-3">Qtd Atual</th>
-                        <th class="p-3">Qtd Mínima</th>
-                        <th class="p-3">Fornecedor</th>
-                        <th class="p-3">Status</th>
-                    </tr>
-                </thead>
-                <tbody id="corpoTabelaEstoque"></tbody>
-            </table>
-        </div>
-
-        <!-- Modal de Cadastro -->
-        <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div class="bg-white p-8 rounded-lg w-full max-w-lg">
-                <h2 class="text-xl font-bold mb-4">Cadastrar Produto</h2>
-                <form id="formProduto" class="grid grid-cols-2 gap-4">
-                    <input type="text" name="nome" placeholder="Nome do Produto" class="col-span-2 border p-2 rounded" required>
-                    <select name="categoria_id" id="selCat" class="border p-2 rounded"></select>
-                    <select name="fornecedor_id" id="selForn" class="border p-2 rounded"></select>
-                    <input type="text" name="unidade" placeholder="Unidade (kg, un, cx)" class="border p-2 rounded">
-                    <input type="number" name="quantidade_atual" placeholder="Qtd Atual" class="border p-2 rounded">
-                    <input type="number" name="quantidade_minima" placeholder="Qtd Mínima" class="border p-2 rounded">
-                    <div class="col-span-2 flex gap-2">
-                        <button type="submit" class="flex-1 bg-green-600 text-white p-2 rounded">Salvar</button>
-                        <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="flex-1 bg-gray-400 text-white p-2 rounded">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </main>
-
-    <script type="module">
-        import { supabase } from './js/supabaseClient.js';
-        import { renderMenu } from './js/menu.js';
-        import { verificarSessao } from './js/auth.js';
-
-        async function init() {
-            await verificarSessao();
-            renderMenu();
-            carregarSelects();
-            carregarEstoque();
-        }
-
-        async function carregarSelects() {
-            const { data: categorias } = await supabase.from('categorias').select('*, categoria_pai(nome)');
+async function carregarSelects() {
+    // Busca todas as categorias de forma simples
+    const { data: categorias } = await supabase.from('categorias').select('*').order('nome');
+    const { data: fornecedores } = await supabase.from('fornecedores').select('*').order('nome');
     
-            document.getElementById('selCat').innerHTML = categorias.map(c => {
-                // Se tiver pai, mostra "Pai > Filho", se não, mostra só o nome
-                const nomeExibicao = c.categoria_pai ? `${c.categoria_pai.nome} > ${c.nome}` : c.nome;
-                return `<option value="${c.id}">${nomeExibicao}</option>`;
-            }).join('');
-        }
+    // Preenche o select de categorias
+    const selCat = document.getElementById('selCat');
+    selCat.innerHTML = '<option value="">Selecione uma categoria...</option>' + 
+        categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
 
-        async function carregarEstoque() {
-            const { data: produtos } = await supabase.from('produtos').select('*, categorias(nome), fornecedores(nome)');
-            const tbody = document.getElementById('corpoTabelaEstoque');
-            tbody.innerHTML = produtos.map(p => {
-                const statusCor = p.quantidade_atual <= p.quantidade_minima ? 'text-red-600 font-bold' : 'text-green-600';
-                return `
-                <tr class="border-b">
-                    <td class="p-3">${p.nome}</td>
-                    <td class="p-3">${p.categorias?.nome || '-'}</td>
-                    <td class="p-3">${p.quantidade_atual} ${p.unidade}</td>
-                    <td class="p-3">${p.quantidade_minima} ${p.unidade}</td>
-                    <td class="p-3">${p.fornecedores?.nome || '-'}</td>
-                    <td class="p-3 ${statusCor}">${p.quantidade_atual <= p.quantidade_minima ? 'REPOR' : 'OK'}</td>
-                </tr>`;
-            }).join('');
-        }
-
-        document.getElementById('formProduto').onsubmit = async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            await supabase.from('produtos').insert([Object.fromEntries(fd)]);
-            document.getElementById('modal').classList.add('hidden');
-            carregarEstoque();
-        };
-
-        init();
-    </script>
-</body>
-</html>
+    // Preenche o select de fornecedores
+    const selForn = document.getElementById('selForn');
+    selForn.innerHTML = '<option value="">Selecione um fornecedor...</option>' + 
+        fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+}
