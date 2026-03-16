@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Alertas Inteligentes - Cozinha Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 flex">
+    <main class="ml-64 p-8 w-full">
+        <h1 class="text-3xl font-bold mb-6 text-red-600">Alertas de Compra</h1>
+        
+        <div id="containerAlertas" class="grid gap-4">
+            <!-- Alertas serão injetados aqui -->
+            <p id="loading" class="text-gray-500 text-center">Analisando estoque e fornecedores...</p>
+        </div>
+    </main>
+
+    <script type="module">
+        import { supabase } from './js/supabaseClient.js';
+        import { renderMenu } from './js/menu.js';
+        import { verificarSessao } from './js/auth.js';
+
+        const diasSemana = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+        const hojeNome = diasSemana[new Date().getDay()];
+
+        async function carregarAlertas() {
+            await verificarSessao();
+            renderMenu();
+
+            const { data: produtos } = await supabase
+                .from('produtos')
+                .select('*, fornecedores(nome, dia_pedido)');
+
+            const container = document.getElementById('containerAlertas');
+            document.getElementById('loading').remove();
+            
+            let temAlerta = false;
+
+            produtos.forEach(p => {
+                // Alerta 1: Estoque Crítico
+                if (p.quantidade_atual <= p.quantidade_minima) {
+                    temAlerta = true;
+                    criarCardAlerta(container, "ESTOQUE CRÍTICO", `${p.nome} está abaixo do mínimo!`, "bg-red-100 border-red-500 text-red-700");
+                }
+
+                // Alerta 2: Dia de Pedido
+                if (p.fornecedores && p.fornecedores.dia_pedido.includes(hojeNome)) {
+                    temAlerta = true;
+                    criarCardAlerta(container, "DIA DE PEDIDO", `Hoje é dia de pedir ${p.nome} com ${p.fornecedores.nome}`, "bg-blue-100 border-blue-500 text-blue-700");
+                }
+            });
+
+            if (!temAlerta) {
+                container.innerHTML = '<div class="bg-green-100 p-4 rounded text-green-700">Tudo em dia! Nenhum alerta para hoje.</div>';
+            }
+        }
+
+        function criarCardAlerta(parent, titulo, msg, cores) {
+            parent.innerHTML += `
+                <div class="p-4 rounded border-l-4 shadow-sm ${cores}">
+                    <h3 class="font-bold text-sm uppercase">${titulo}</h3>
+                    <p>${msg}</p>
+                </div>
+            `;
+        }
+
+        carregarAlertas();
+    </script>
+</body>
+</html>
