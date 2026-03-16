@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Fornecedores - Cozinha Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 flex">
+    <main class="ml-64 p-8 w-full">
+        <h1 class="text-3xl font-bold mb-6">Fornecedores</h1>
+        <form id="formFornecedor" class="bg-white p-6 rounded shadow-sm mb-6 grid grid-cols-2 gap-4">
+            <input type="text" name="nome" placeholder="Nome do Fornecedor" required class="border p-2 rounded">
+            <input type="text" name="telefone" placeholder="Telefone" class="border p-2 rounded">
+            <input type="email" name="email" placeholder="E-mail" class="border p-2 rounded">
+            <input type="text" name="dia_pedido" placeholder="Dia de Pedido (ex: Segunda)" class="border p-2 rounded">
+            <button type="submit" class="col-span-2 bg-orange-500 text-white p-2 rounded">Cadastrar Fornecedor</button>
+        </form>
+        <div id="listaFornecedores" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </main>
+    <script type="module">
+        import { supabase } from './js/supabaseClient.js';
+        import { renderMenu } from './js/menu.js';
+        import { verificarSessao } from './js/auth.js';
+
+        async function init() {
+            await verificarSessao();
+            renderMenu();
+            carregarFornecedores();
+        }
+
+        async function carregarFornecedores() {
+            const { data } = await supabase.from('fornecedores').select('*');
+            const lista = document.getElementById('listaFornecedores');
+            lista.innerHTML = data.map(f => `
+                <div class="bg-white p-4 rounded shadow border-l-4 border-orange-500">
+                    <h3 class="font-bold text-lg">${f.nome}</h3>
+                    <p class="text-sm text-gray-600">Tel: ${f.telefone}</p>
+                    <p class="text-sm text-gray-600">Pedido: ${f.dia_pedido}</p>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('formFornecedor').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            await supabase.from('fornecedores').insert([Object.fromEntries(fd)]);
+            e.target.reset();
+            carregarFornecedores();
+        };
+
+        init();
+    </script>
+</body>
+</html>
