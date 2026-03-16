@@ -8,40 +8,29 @@
 </head>
 <body class="bg-gray-50 flex">
     <main class="ml-64 p-8 w-full">
-        <h1 class="text-3xl font-bold mb-6">Categorias e Subcategorias</h1>
+        <h1 class="text-3xl font-bold mb-6">Organização de Estoque</h1>
 
-        <!-- Formulário de Cadastro -->
-        <div class="bg-white p-6 rounded shadow-sm mb-6 border-t-4 border-orange-500">
-            <h2 class="text-lg font-semibold mb-4">Nova Categoria / Subcategoria</h2>
-            <form id="formCategoria" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm text-gray-600">Nome</label>
-                    <input type="text" name="nome" placeholder="Ex: Bovina" required class="w-full border p-2 rounded">
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-600">Pertence à (Pai)</label>
-                    <select name="categoria_pai" id="selCategoriaPai" class="w-full border p-2 rounded">
-                        <option value="">Nenhuma (Categoria Principal)</option>
-                    </select>
-                </div>
-                <div class="flex items-end">
-                    <button type="submit" class="w-full bg-orange-500 text-white px-4 py-2 rounded font-bold hover:bg-orange-600 transition">
-                        Cadastrar
-                    </button>
-                </div>
+        <!-- Bloco 1: Criar Categoria Principal -->
+        <div class="bg-white p-6 rounded shadow-sm mb-8 border-l-4 border-orange-500">
+            <h2 class="font-bold text-gray-700 mb-4">1. Criar Nova Categoria Principal (ex: Proteínas, FLV, Bebidas)</h2>
+            <form id="formPai" class="flex gap-4">
+                <input type="text" name="nome" id="nomePai" placeholder="Nome da Categoria Principal" required class="flex-1 border p-2 rounded text-lg">
+                <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded font-bold hover:bg-orange-600 transition">
+                    + Criar Principal
+                </button>
             </form>
         </div>
 
-        <!-- Tabela de Exibição -->
+        <!-- Bloco 2: Tabela de Gestão -->
         <div class="bg-white rounded shadow-sm overflow-hidden">
-            <table class="w-full text-left">
+            <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-gray-800 text-white">
-                        <th class="p-4 text-sm uppercase">Categoria Principal</th>
-                        <th class="p-4 text-sm uppercase">Subcategorias</th>
+                        <th class="p-4 w-1/3">CATEGORIA PRINCIPAL</th>
+                        <th class="p-4">SUBCATEGORIAS (Digite e tecle Enter para adicionar)</th>
                     </tr>
                 </thead>
-                <tbody id="listaCategorias">
+                <tbody id="corpoTabela">
                     <!-- Gerado via JS -->
                 </tbody>
             </table>
@@ -56,60 +45,8 @@
         async function init() {
             await verificarSessao();
             renderMenu();
-            carregarCategorias();
+            renderizarTabela();
         }
 
-        async function carregarCategorias() {
-            // Buscamos todas as categorias
-            const { data: categorias, error } = await supabase
-                .from('categorias')
-                .select('*')
-                .order('nome', { ascending: true });
-
-            if (error) return console.error(error);
-
-            // 1. Preencher o Select (apenas categorias que não têm pai podem ser pais)
-            const selPai = document.getElementById('selCategoriaPai');
-            const principais = categorias.filter(c => !c.categoria_pai);
-            
-            selPai.innerHTML = '<option value="">Nenhuma (Categoria Principal)</option>' + 
-                principais.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
-
-            // 2. Renderizar a Tabela com Hierarquia
-            const tbody = document.getElementById('listaCategorias');
-            tbody.innerHTML = '';
-
-            principais.forEach(pai => {
-                // Filtra as subcategorias desta categoria pai
-                const subs = categorias.filter(c => c.categoria_pai === pai.id);
-                const nomesSubs = subs.map(s => `<span class="bg-gray-100 px-2 py-1 rounded text-sm mr-2 mb-2 inline-block">${s.nome}</span>`).join('');
-
-                tbody.innerHTML += `
-                    <tr class="border-b hover:bg-gray-50 transition">
-                        <td class="p-4 font-bold text-gray-700">${pai.nome}</td>
-                        <td class="p-4">${nomesSubs || '<span class="text-gray-400 italic text-xs">Nenhuma subcategoria</span>'}</td>
-                    </tr>
-                `;
-            });
-        }
-
-        document.getElementById('formCategoria').onsubmit = async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const nome = formData.get('nome');
-            const categoria_pai = formData.get('categoria_pai') || null;
-
-            const { error } = await supabase.from('categorias').insert([{ nome, categoria_pai }]);
-
-            if (error) {
-                alert("Erro ao salvar: " + error.message);
-            } else {
-                e.target.reset();
-                carregarCategorias();
-            }
-        };
-
-        init();
-    </script>
-</body>
-</html>
+        async function renderizarTabela() {
+            const { data: todas, error } = await supabase.from('categorias').select('*'
